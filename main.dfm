@@ -4,8 +4,8 @@ object Form1: TForm1
   BorderIcons = [biSystemMenu, biMinimize]
   BorderStyle = bsSingle
   Caption = 'EMMA'
-  ClientHeight = 216
-  ClientWidth = 292
+  ClientHeight = 241
+  ClientWidth = 289
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -24,6 +24,27 @@ object Form1: TForm1
     Width = 38
     Height = 13
     Caption = 'VNA file'
+  end
+  object Label2: TLabel
+    Left = 8
+    Top = 64
+    Width = 33
+    Height = 13
+    Caption = 'Prompt'
+  end
+  object Label3: TLabel
+    Left = 8
+    Top = 88
+    Width = 33
+    Height = 13
+    Caption = 'Length'
+  end
+  object Label4: TLabel
+    Left = 256
+    Top = 88
+    Width = 6
+    Height = 13
+    Caption = '8'
   end
   object Edit1: TEdit
     Left = 56
@@ -44,15 +65,15 @@ object Form1: TForm1
   end
   object Memo1: TMemo
     Left = 8
-    Top = 64
+    Top = 112
     Width = 273
-    Height = 113
+    Height = 89
     ScrollBars = ssVertical
     TabOrder = 2
   end
   object BitBtn1: TBitBtn
     Left = 8
-    Top = 184
+    Top = 208
     Width = 113
     Height = 25
     Caption = 'Generate'
@@ -63,17 +84,17 @@ object Form1: TForm1
   end
   object BitBtn2: TBitBtn
     Left = 128
-    Top = 184
+    Top = 208
     Width = 75
     Height = 25
     Caption = 'About'
-    Enabled = False
     TabOrder = 4
+    OnClick = BitBtn2Click
     Kind = bkHelp
   end
   object BitBtn3: TBitBtn
     Left = 208
-    Top = 184
+    Top = 208
     Width = 75
     Height = 25
     Caption = 'Exit'
@@ -87,6 +108,26 @@ object Form1: TForm1
     Height = 17
     TabOrder = 6
   end
+  object Edit2: TEdit
+    Left = 48
+    Top = 64
+    Width = 233
+    Height = 21
+    TabOrder = 7
+    Text = 'Once upon a time'
+  end
+  object TrackBar1: TTrackBar
+    Left = 48
+    Top = 88
+    Width = 201
+    Height = 17
+    Max = 256
+    Min = 8
+    Position = 8
+    TabOrder = 8
+    ThumbLength = 12
+    OnChange = TrackBar1Change
+  end
   object ODlg1: TOpenDialog
     DefaultExt = 'vna'
     Filter = 'Virtual Diana Files|*.vna|All files|*.*'
@@ -96,6 +137,12 @@ object Form1: TForm1
   end
   object XPManifest1: TXPManifest
     Left = 96
+    Top = 8
+  end
+  object Timer1: TTimer
+    Interval = 100
+    OnTimer = Timer1Timer
+    Left = 176
     Top = 8
   end
 end

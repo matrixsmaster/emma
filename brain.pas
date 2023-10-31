@@ -1,5 +1,6 @@
 unit brain;
 // The Transformer
+// I tried to leave as many comments from the OG code as possible
 
 interface
 
@@ -65,10 +66,6 @@ type
     config: TConfig; // the hyperparameters of the architecture (the blueprint)
     weights: TTransformerWeights; // the weights of the model
     state: TRunState; // buffers for the "wave" of activations in the forward pass
-    // some more state needed to properly clean up the memory mapping (sigh)
-    //fd: integer; // file descriptor for memory mapping
-    //data: PFloats; // memory mapped data pointer
-    //file_size: cardinal; // size of the checkpodata in bytes: integer
   end;
 
   EFileReadError = class(Exception);
@@ -186,6 +183,7 @@ var
 begin
   head_size := p^.dim div p^.n_heads;
 
+  // no comments, it's a mess. Delphi doesn't have proper pointer arithmetic, so... improvisation
   alloc_and_read(w^.token_embedding_table,fhandle,p^.vocab_size * p^.dim,callback);
   alloc_and_read(w^.rms_att_weight,fhandle,p^.n_layers * p^.dim,callback);
   alloc_and_read(w^.wq,fhandle,p^.n_layers * p^.dim * (p^.n_heads * head_size),callback);
@@ -250,7 +248,9 @@ begin
 end;
 
 // *****************************************************************************
-// Mathematics :)
+// Mmmm... Mathematics :)
+// A word of advice - don't try to follow the offset-based arithmetic here -
+// you'll lose your mind. You've been warned! ;)
 
 procedure rmsnorm(var o: PFloats; x, weight: PFloats; woff, size: integer);
 var
@@ -333,8 +333,6 @@ begin
   head_size := dim div p^.n_heads;
 
   // copy the token embedding into x
-  //content_row := w^.token_embedding_table + token * dim;
-  //memcpy(x, content_row, dim*sizeof( *x));
   floatcpy_off(x,w^.token_embedding_table,token*dim,dim);
 
   // forward all the layers
@@ -376,11 +374,7 @@ begin
 
     // save key,value at this time step (pos) to our kv cache
     loff := l * p^.seq_len * kv_dim; // kv cache layer offset for convenience
-    //key_cache_row : PFloats= s^.key_cache + loff + pos * kv_dim;
-    //value_cache_row : PFloats= s^.value_cache + loff + pos * kv_dim;
-    //memcpy(key_cache_row, s^.k, kv_dim * sizeof( *key_cache_row));
     floatcpy_doff(s^.key_cache, loff+pos*kv_dim, s^.k, 0, kv_dim);
-    //memcpy(value_cache_row, s^.v, kv_dim * sizeof( *value_cache_row));
     floatcpy_doff(s^.value_cache, loff+pos*kv_dim, s^.v, 0, kv_dim);
 
     // multihead attention. iterate over all heads

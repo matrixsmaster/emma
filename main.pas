@@ -4,7 +4,8 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, Buttons, StdCtrls, XPMan, brain, tokenz, sampler, ComCtrls, DateUtils;
+  Dialogs, Buttons, StdCtrls, XPMan, brain, tokenz, sampler, ComCtrls, DateUtils,
+  ExtCtrls;
 
 type
   TForm1 = class(TForm)
@@ -18,16 +19,26 @@ type
     ODlg1: TOpenDialog;
     XPManifest1: TXPManifest;
     PBar1: TProgressBar;
+    Timer1: TTimer;
+    Edit2: TEdit;
+    Label2: TLabel;
+    Label3: TLabel;
+    TrackBar1: TTrackBar;
+    Label4: TLabel;
     procedure Button1Click(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure BitBtn1Click(Sender: TObject);
+    procedure Timer1Timer(Sender: TObject);
+    procedure BitBtn2Click(Sender: TObject);
+    procedure TrackBar1Change(Sender: TObject);
   private
     { Private declarations }
     floaded, aborted, loading, generating: boolean;
     trans: TTransformer;
     tokz: TTokenizer;
     sampl: TSampler;
+    seed_val: integer;
   public
     { Public declarations }
     function ProgressCallback(total, cur: integer): boolean;
@@ -52,7 +63,6 @@ procedure TForm1.Button1Click(Sender: TObject);
 var
   I: Integer;
   fhandle: integer;
-  arr: PInts;
 begin
   if not ODlg1.Execute then exit;
   Edit1.Text := ODlg1.FileName;
@@ -86,15 +96,8 @@ begin
 
   FileClose(fhandle);
 
-  build_sampler(@sampl,1.0,0.9,trans.config.vocab_size,80085);
-
-  encode(arr,@tokz,'Testing',true,true);
-  for I := 0 to High(arr) do    // Iterate
-  begin
-    Memo1.Lines.Add(IntToStr(arr[I]) + ' "' + tokz.vocab[arr[i]] + '"');
-    Memo1.Lines.Add(FloatToStr(random_f32(sampl.rng_state)));
-  end;    // for
-  arr := nil;
+  build_sampler(@sampl,1.0,0.9,trans.config.vocab_size,seed_val);
+  Memo1.Lines.Add('Seed value = ' + IntToStr(seed_val));
 
   floaded := true;
   Button1.Enabled := false;
@@ -107,6 +110,7 @@ begin
   aborted := false;
   loading := false;
   generating := false;
+  seed_val := 0;
 end;
 
 procedure TForm1.FormClose(Sender: TObject; var Action: TCloseAction);
@@ -128,10 +132,13 @@ var
   pb: byte;
   start,stop: TDateTime;
 begin
-  encode(prompt_tokens,@tokz,'A girl',true,false);
+  if Edit2.Text <> '' then
+    encode(prompt_tokens,@tokz,Edit2.Text,true,false)
+  else
+    encode(prompt_tokens,@tokz,'A girl',true,false);
   token := prompt_tokens[0]; // kick off with the first token in the prompt
   pos := 0;     // position in the sequence
-  steps := 16;
+  steps := TrackBar1.Position;
   if (steps = 0) or (steps > trans.config.seq_len) then
     steps := trans.config.seq_len; // ovrerride to max length
 
@@ -167,20 +174,42 @@ begin
       pb := Ord(piece[i]);
       if (pb > 31) and (pb < 127) then
         output := output + piece[i]
-      else if pb = 10 then
-        output := output + '\r\n'
+      else
+      if (pb = 10) or (pb = 13) then
+      begin
+        if output <> '' then Memo1.Lines.Add(output);
+        output := '';
+      end
       else
         output := output + '<+' + IntToStr(pb) + '>';
       token := next;
     end;
 
     PBar1.Position := pos;
-    Application.ProcessMessages;
+    Application.ProcessMessages; // this will mess with time measurement, but oh well...
   end;
 
   stop := Time;
-  Memo1.Lines.Add(output);
-  Memo1.Lines.Add(FloatToStr(MilliSecondSpan(stop,start)/steps) + ' ms/token');
+  if output <> '' then Memo1.Lines.Add(output);
+  Memo1.Lines.Add('Speed: ' + FloatToStr(MilliSecondSpan(stop,start)/steps) + ' ms/token');
+end;
+
+procedure TForm1.Timer1Timer(Sender: TObject);
+begin
+  Inc(seed_val);
+end;
+
+procedure TForm1.BitBtn2Click(Sender: TObject);
+begin
+  ShowMessage('EMMA is a Delphi port of llama2.c project'+#13+
+              'OG llama2.c is (C) Andrej Karpathy'+#13+
+              'EMMA is (C) Dmitry ''sciloaf'' Solovyev'+#13+
+              '2023');
+end;
+
+procedure TForm1.TrackBar1Change(Sender: TObject);
+begin
+  Label4.Caption := IntToStr(TrackBar1.Position);
 end;
 
 end.

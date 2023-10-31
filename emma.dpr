@@ -11,6 +11,7 @@ uses
 
 begin
   Application.Initialize;
+  Application.Title := 'EMMA';
   Application.CreateForm(TForm1, Form1);
   Application.Run;
 end.
