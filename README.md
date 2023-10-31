@@ -6,7 +6,7 @@ It is inteded to be built with Delphi 7 in Windows XP.
 
 I can not guarantee that it can be compiled with a newer version of Delphi.
 
-You'll need VNA model files to run EMMA: [HF repo]
+You'll need VNA model files to run EMMA: [HF repo](https://huggingface.co/sciloaf/emma-tiny_stories)
 
 
 ## Why?
