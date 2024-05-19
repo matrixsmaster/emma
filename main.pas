@@ -42,12 +42,14 @@ type
   public
     { Public declarations }
     function ProgressCallback(total, cur: integer): boolean;
+    procedure UpdateSamplerConfig;
   end;
 
 var
   Form1: TForm1;
 
 implementation
+uses config;
 
 {$R *.dfm}
 
@@ -96,12 +98,13 @@ begin
 
   FileClose(fhandle);
 
-  build_sampler(@sampl,1.0,0.9,trans.config.vocab_size,seed_val);
-  Memo1.Lines.Add('Seed value = ' + IntToStr(seed_val));
-
   floaded := true;
   Button1.Enabled := false;
   BitBtn1.Enabled := true;
+  Form2.Show;
+  Form2.SpinEdit1.Value := seed_val;
+  Timer1.Enabled := false;
+  UpdateSamplerConfig;
 end;
 
 procedure TForm1.FormCreate(Sender: TObject);
@@ -153,15 +156,11 @@ begin
 
     // advance the state state machine
     if pos < High(prompt_tokens) then
-    begin
       // if we are still processing the input prompt, force the next prompt token
-      next := prompt_tokens[pos + 1];
-    end
+      next := prompt_tokens[pos + 1]
     else
-    begin
       // otherwise sample the next token from the logits
       next := sample(@sampl, logits);
-    end;
     inc(pos);
 
     // data-dependent terminating condition: the BOS (=1) token delimits sequences
@@ -201,15 +200,21 @@ end;
 
 procedure TForm1.BitBtn2Click(Sender: TObject);
 begin
-  ShowMessage('EMMA is a Delphi port of llama2.c project'+#13+
-              'OG llama2.c is (C) Andrej Karpathy'+#13+
-              'EMMA is (C) Dmitry ''sciloaf'' Solovyev'+#13+
-              '2023');
+  ShowMessage('EMMA is AI inference engine written in Delphi 7 for Windows XP'+#13+
+              '(C) Dmitry ''sciloaf'' Solovyev, 2023-2024'+#13+#13+
+              'Based on ''llama2.c'' (C) Andrej Karpathy, 2023');
 end;
 
 procedure TForm1.TrackBar1Change(Sender: TObject);
 begin
   Label4.Caption := IntToStr(TrackBar1.Position);
+end;
+
+procedure TForm1.UpdateSamplerConfig;
+begin
+  free_sampler(@sampl);
+  build_sampler(@sampl,Form2.temp,Form2.topp,trans.config.vocab_size,Form2.SpinEdit1.Value);
+  Memo1.Lines.Add('Seed value = ' + IntToStr(Form2.SpinEdit1.Value));
 end;
 
 end.

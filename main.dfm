@@ -69,7 +69,7 @@ object Form1: TForm1
     Width = 273
     Height = 89
     ScrollBars = ssVertical
-    TabOrder = 2
+    TabOrder = 5
   end
   object BitBtn1: TBitBtn
     Left = 8
@@ -78,7 +78,7 @@ object Form1: TForm1
     Height = 25
     Caption = 'Generate'
     Enabled = False
-    TabOrder = 3
+    TabOrder = 6
     OnClick = BitBtn1Click
     Kind = bkRetry
   end
@@ -88,7 +88,7 @@ object Form1: TForm1
     Width = 75
     Height = 25
     Caption = 'About'
-    TabOrder = 4
+    TabOrder = 7
     OnClick = BitBtn2Click
     Kind = bkHelp
   end
@@ -98,7 +98,7 @@ object Form1: TForm1
     Width = 75
     Height = 25
     Caption = 'Exit'
-    TabOrder = 5
+    TabOrder = 8
     Kind = bkClose
   end
   object PBar1: TProgressBar
@@ -106,14 +106,14 @@ object Form1: TForm1
     Top = 40
     Width = 273
     Height = 17
-    TabOrder = 6
+    TabOrder = 2
   end
   object Edit2: TEdit
     Left = 48
     Top = 64
     Width = 233
     Height = 21
-    TabOrder = 7
+    TabOrder = 3
     Text = 'Once upon a time'
   end
   object TrackBar1: TTrackBar
@@ -124,7 +124,7 @@ object Form1: TForm1
     Max = 256
     Min = 8
     Position = 8
-    TabOrder = 8
+    TabOrder = 4
     ThumbLength = 12
     OnChange = TrackBar1Change
   end
