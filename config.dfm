@@ -4,8 +4,8 @@ object Form2: TForm2
   BorderIcons = [biSystemMenu]
   BorderStyle = bsToolWindow
   Caption = 'Configuration'
-  ClientHeight = 161
-  ClientWidth = 289
+  ClientHeight = 154
+  ClientWidth = 281
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -34,16 +34,16 @@ object Form2: TForm2
   object Label3: TLabel
     Left = 240
     Top = 8
-    Width = 6
+    Width = 34
     Height = 13
-    Caption = '0'
+    Caption = 'Greedy'
   end
   object Label4: TLabel
     Left = 240
     Top = 48
-    Width = 6
+    Width = 21
     Height = 13
-    Caption = '0'
+    Caption = '0.00'
   end
   object Label5: TLabel
     Left = 8
@@ -84,12 +84,22 @@ object Form2: TForm2
   end
   object BitBtn1: TBitBtn
     Left = 8
-    Top = 128
-    Width = 273
+    Top = 120
+    Width = 265
     Height = 25
     Caption = 'Apply'
     TabOrder = 3
     OnClick = BitBtn1Click
     Kind = bkOK
+  end
+  object BitBtn2: TBitBtn
+    Left = 184
+    Top = 88
+    Width = 89
+    Height = 25
+    Caption = 'Random'
+    TabOrder = 4
+    OnClick = BitBtn2Click
+    Kind = bkRetry
   end
 end

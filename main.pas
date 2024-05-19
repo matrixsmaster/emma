@@ -43,6 +43,7 @@ type
     { Public declarations }
     function ProgressCallback(total, cur: integer): boolean;
     procedure UpdateSamplerConfig;
+    procedure Reset;
   end;
 
 var
@@ -76,6 +77,8 @@ begin
     exit;
   end;
 
+  Reset;
+
   try
     build_transformer(fhandle,@trans,ProgressCallback);
   except
@@ -99,7 +102,6 @@ begin
   FileClose(fhandle);
 
   floaded := true;
-  Button1.Enabled := false;
   BitBtn1.Enabled := true;
   Form2.Show;
   Form2.SpinEdit1.Value := seed_val;
@@ -109,21 +111,15 @@ end;
 
 procedure TForm1.FormCreate(Sender: TObject);
 begin
+  Randomize;
   floaded := false;
-  aborted := false;
-  loading := false;
-  generating := false;
   seed_val := 0;
+  Reset;
 end;
 
 procedure TForm1.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
-  if floaded then
-  begin
-    free_transformer(@trans);
-    free_tokenizer(@tokz);
-    free_sampler(@sampl);
-  end;
+  Reset;
 end;
 
 procedure TForm1.BitBtn1Click(Sender: TObject);
@@ -135,6 +131,8 @@ var
   pb: byte;
   start,stop: TDateTime;
 begin
+  if not floaded then exit;
+    
   if Edit2.Text <> '' then
     encode(prompt_tokens,@tokz,Edit2.Text,true,false)
   else
@@ -215,6 +213,21 @@ begin
   free_sampler(@sampl);
   build_sampler(@sampl,Form2.temp,Form2.topp,trans.config.vocab_size,Form2.SpinEdit1.Value);
   Memo1.Lines.Add('Seed value = ' + IntToStr(Form2.SpinEdit1.Value));
+end;
+
+procedure TForm1.Reset;
+begin
+  if floaded then
+  begin
+    free_transformer(@trans);
+    free_tokenizer(@tokz);
+    free_sampler(@sampl);
+    floaded := false;
+  end;
+
+  aborted := false;
+  loading := false;
+  generating := false;
 end;
 
 end.

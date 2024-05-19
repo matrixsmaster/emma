@@ -17,10 +17,12 @@ type
     Label5: TLabel;
     SpinEdit1: TSpinEdit;
     BitBtn1: TBitBtn;
+    BitBtn2: TBitBtn;
     procedure TrackBar1Change(Sender: TObject);
     procedure BitBtn1Click(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure TrackBar2Change(Sender: TObject);
+    procedure BitBtn2Click(Sender: TObject);
   private
     { Private declarations }
   public
@@ -65,6 +67,11 @@ procedure TForm2.TrackBar2Change(Sender: TObject);
 begin
   topp := TrackBar2.Position / 100.0;
   Label4.Caption := FloatToStr(topp);
+end;
+
+procedure TForm2.BitBtn2Click(Sender: TObject);
+begin
+  SpinEdit1.Value := random(99999);
 end;
 
 end.

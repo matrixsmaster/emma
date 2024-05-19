@@ -18,10 +18,10 @@ type
   PSampler = ^TSampler;
   TSampler = record
     vocab_size: integer;
-    probindex: TProbIndexArr; // buffer used in top-p sampling
     temperature: single;
     topp: single;
     rng_state: Int64;
+    probindex: TProbIndexArr; // buffer used in top-p sampling
   end;
 
 procedure build_sampler(sampler: PSampler; temperature, topp: single; vocab_size, rng_seed: integer); forward;
