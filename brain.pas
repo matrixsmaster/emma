@@ -29,28 +29,29 @@ type
     q: PInt8;
     s: PFloats;
   end;
+  PQuantizedTensor = array of TQuantizedTensor;
 
   PTransformerWeights = ^TTransformerWeights;
   TTransformerWeights = record
     // token embedding table
-    q_tokens: TQuantizedTensor; // (vocab_size, dim)
+    q_tokens: PQuantizedTensor; // (vocab_size, dim)
     token_embedding_table: PFloats; // (vocab_size, dim)
     // weights for rmsnorms
     rms_att_weight: PFloats; // (layer, dim) rmsnorm weights
     rms_ffn_weight: PFloats; // (layer, dim)
     // weights for matmuls. note dim == n_heads * head_size
-    wq: TQuantizedTensor; // (layer, dim, n_heads * head_size)
-    wk: TQuantizedTensor; // (layer, dim, n_kv_heads * head_size)
-    wv: TQuantizedTensor; // (layer, dim, n_kv_heads * head_size)
-    wo: TQuantizedTensor; // (layer, n_heads * head_size, dim)
+    wq: PQuantizedTensor; // (layer, dim, n_heads * head_size)
+    wk: PQuantizedTensor; // (layer, dim, n_kv_heads * head_size)
+    wv: PQuantizedTensor; // (layer, dim, n_kv_heads * head_size)
+    wo: PQuantizedTensor; // (layer, n_heads * head_size, dim)
     // weights for ffn
-    w1: TQuantizedTensor; // (layer, hidden_dim, dim)
-    w2: TQuantizedTensor; // (layer, dim, hidden_dim)
-    w3: TQuantizedTensor; // (layer, hidden_dim, dim)
+    w1: PQuantizedTensor; // (layer, hidden_dim, dim)
+    w2: PQuantizedTensor; // (layer, dim, hidden_dim)
+    w3: PQuantizedTensor; // (layer, hidden_dim, dim)
     // final rmsnorm
     rms_final_weight: PFloats; // (dim,)
     // (optional) classifier weights for the logits, on the last layer
-    wcls: TQuantizedTensor;
+    wcls: PQuantizedTensor;
   end;
 
   PRunState = ^TRunState;
@@ -61,8 +62,8 @@ type
     xb2: PFloats; // an additional buffer just for convenience (dim,)
     hb: PFloats; // buffer for hidden dimension in the ffn (hidden_dim,)
     hb2: PFloats; // buffer for hidden dimension in the ffn (hidden_dim,)
-    xq: TQuantizedTensor; // quantized x (dim,)
-    hq: TQuantizedTensor; // quantized hb (hidden_dim,)
+    xq: PQuantizedTensor; // quantized x (dim,)
+    hq: PQuantizedTensor; // quantized hb (hidden_dim,)
     q: PFloats; // query (dim,)
     k: PFloats; // key (dim,)
     v: PFloats; // value (dim,)
@@ -119,14 +120,16 @@ begin
   for i := 0 to size-1 do o[i+out_off] := inp[i+inp_off];
 end;
 
-procedure qtensor_copy(var o: TQuantizedTensor; inp: TQuantizedTensor);
+procedure qtensor_alloc(var o: PQuantizedTensor; num, len: integer);
 var
   i: integer;
 begin
-  SetLength(o.q,High(inp.q)+1);
-  SetLength(o.s,High(inp.s)+1);
-  for i := 0 to High(inp.q) do o.q[i] := inp.q[i];
-  for i := 0 to High(inp.s) do o.s[i] := inp.s[i];
+  SetLength(o,num);
+  for i := 0 to num-1 do
+  begin
+    SetLength(o[i].q,len);
+    SetLength(o[i].s,len div GS);
+  end;
 end;
 
 procedure FileReadWithFail(Handle: Integer; var Buffer; Count: Integer);
@@ -156,16 +159,20 @@ begin
   SetLength(s^.value_cache,p^.n_layers * p^.seq_len * kv_dim);
 
   // allocate quantized runtime tensors
-  SetLength(s^.xq.q,p^.dim);
-  SetLength(s^.xq.s,p^.dim); // shouldn't it be "div GS" ?
-  SetLength(s^.hq.q,p^.hidden_dim);
-  SetLength(s^.hq.s,p^.hidden_dim);
+  qtensor_alloc(s^.xq,1,p^.dim);
+  qtensor_alloc(s^.hq,1,p^.hidden_dim);
 end;
 
-procedure free_tensor(var z: TQuantizedTensor);
+procedure free_tensor(var z: PQuantizedTensor);
+var
+  i: integer;
 begin
-  z.q := nil;
-  z.s := nil;
+  for i := 0 to High(z) do
+  begin
+    z[i].q := nil;
+    z[i].s := nil;
+  end;
+  SetLength(z,0);
 end;
 
 procedure free_run_state(s: PRunState);
@@ -219,21 +226,19 @@ begin
   end;
 end;
 
-procedure qalloc_and_qread(var arr: TQuantizedTensor; fhandle: integer; amount, size_each: integer; callback: TLoadCallbkFun);
+procedure qalloc_and_qread(var arr: PQuantizedTensor; fhandle: integer; amount, size_each: integer; callback: TLoadCallbkFun);
 var
   i,j: Integer;
   nq,ns,size,r: cardinal;
   a: array[0..IOBufSize] of ShortInt;
   f: array[0..IOBufSize] of single;
 begin
-  SetLength(arr.q,amount*size_each);
-  SetLength(arr.s,amount*(size_each div GS));
-  nq := 0;
-  ns := 0;
-  for i := 0 to amount-1 do
+  qtensor_alloc(arr,amount,size_each);
+  for i := 0 to High(arr) do
   begin
     // read the quantized weights
     size := size_each;
+    nq := 0;
     while size > 0 do
     begin
       if size > IOBufSize then r := IOBufSize
@@ -242,13 +247,14 @@ begin
       size := size - r;
       for j := 0 to r-1 do
       begin
-        arr.q[nq] := a[j];
+        arr[i].q[nq] := a[j];
         inc(nq);
       end;
     end;
 
     // read the scale factors
     size := size_each div GS;
+    ns := 0;
     while size > 0 do
     begin
       if size > IOBufSize then r := IOBufSize
@@ -257,7 +263,7 @@ begin
       size := size - r;
       for j := 0 to r-1 do
       begin
-        arr.s[ns] := f[j];
+        arr[i].s[ns] := f[j];
         inc(ns);
       end;
     end;
@@ -290,7 +296,7 @@ begin
   tokz := p^.vocab_size * p^.dim;
   qalloc_and_qread(w^.q_tokens,fhandle,1,tokz,callback);
   SetLength(w^.token_embedding_table,tokz);
-  dequantize(w^.q_tokens,w^.token_embedding_table,tokz);
+  dequantize(w^.q_tokens[0],w^.token_embedding_table,tokz);
 
   qalloc_and_qread(w^.wq,fhandle,p^.n_layers,p^.dim * (p^.n_heads * head_size),callback);
   qalloc_and_qread(w^.wk,fhandle,p^.n_layers,p^.dim * (p^.n_kv_heads * head_size),callback);
@@ -298,13 +304,12 @@ begin
   qalloc_and_qread(w^.wo,fhandle,p^.n_layers,(p^.n_heads * head_size) * p^.dim,callback);
 
   qalloc_and_qread(w^.w1,fhandle,p^.n_layers,p^.dim * p^.hidden_dim,callback);
-  qalloc_and_qread(w^.w2,fhandle,p^.n_layers,p^.hidden_dim * p^.dim,callback);
-  ShowMessage(IntToStr(FileSeek(fhandle,0,1)));
+  qalloc_and_qread(w^.w2,fhandle,p^.n_layers,p^.dim * p^.hidden_dim,callback);
   qalloc_and_qread(w^.w3,fhandle,p^.n_layers,p^.dim * p^.hidden_dim,callback);
   ShowMessage(IntToStr(FileSeek(fhandle,0,1)));
 
   if trans^.config.shared_classifier > 0 then
-    qtensor_copy(w^.wcls,w^.q_tokens)
+    w^.wcls := w^.q_tokens
   else
     qalloc_and_qread(w^.wcls,fhandle,1,p^.vocab_size * p^.dim,callback);
 end;
@@ -424,7 +429,7 @@ begin
     x[i] := x[i] / sum;
 end;
 
-procedure matmul(var xout: PFloats; x,w: TQuantizedTensor; woff,n,d: integer);
+procedure matmul(var xout: PFloats; x,w: TQuantizedTensor; n,d: integer);
 var
   i,j,k: integer;
   val: single;
@@ -436,7 +441,7 @@ begin
   begin
     val := 0.0;
     ival := 0;
-    inoff := woff + i * n;
+    inoff := i * n;
     j := 0;
     while j <= n - GS do
     begin
@@ -489,10 +494,10 @@ begin
     rmsnorm(s^.xb, x, w^.rms_att_weight, l*dim, dim);
 
     // qkv matmuls for this position
-    quantize(s^.xq, s^.xb, dim);
-    matmul(s^.q, s^.xq, w^.wq, l*dim*dim, dim, dim);
-    matmul(s^.k, s^.xq, w^.wk, l*dim*kv_dim, dim, kv_dim);
-    matmul(s^.v, s^.xq, w^.wv, l*dim*kv_dim, dim, kv_dim);
+    quantize(s^.xq[0], s^.xb, dim);
+    matmul(s^.q, s^.xq[0], w^.wq[l], dim, dim);
+    matmul(s^.k, s^.xq[0], w^.wk[l], dim, kv_dim);
+    matmul(s^.v, s^.xq[0], w^.wv[l], dim, kv_dim);
 
     // RoPE relative positional encoding: complex-valued rotate q and k in each head
     i := 0;
@@ -565,8 +570,8 @@ begin
     end;
 
     // final matmul to get the output of the attention
-    quantize(s^.xq, s^.xb, dim);
-    matmul(s^.xb2, s^.xq, w^.wo, l*dim*dim, dim, dim);
+    quantize(s^.xq[0], s^.xb, dim);
+    matmul(s^.xb2, s^.xq[0], w^.wo[l], dim, dim);
 
     // residual connection back into x
     for i := 0 to dim-1 do x[i] := x[i] + s^.xb2[i];
@@ -576,9 +581,9 @@ begin
 
     // Now for FFN in PyTorch we have: self.w2(F.silu(self.w1(x)) * self.w3(x))
     // first calculate self.w1(x) and self.w3(x)
-    quantize(s^.xq, s^.xb, dim);
-    matmul(s^.hb, s^.xq, w^.w1, l*dim*hidden_dim, dim, hidden_dim);
-    matmul(s^.hb2, s^.xq, w^.w3, l*dim*hidden_dim, dim, hidden_dim);
+    quantize(s^.xq[0], s^.xb, dim);
+    matmul(s^.hb, s^.xq[0], w^.w1[l], dim, hidden_dim);
+    matmul(s^.hb2, s^.xq[0], w^.w3[l], dim, hidden_dim);
 
     // SwiGLU non-linearity
     for i := 0 to hidden_dim-1 do
@@ -592,8 +597,8 @@ begin
     end;
 
     // final matmul to get the output of the ffn
-    quantize(s^.hq, s^.hb, hidden_dim);
-    matmul(s^.xb, s^.hq, w^.w2, l*dim*hidden_dim, hidden_dim, dim);
+    quantize(s^.hq[0], s^.hb, hidden_dim);
+    matmul(s^.xb, s^.hq[0], w^.w2[l], hidden_dim, dim);
 
     // residual connection
     for i := 0 to dim-1 do x[i] := x[i] + s^.xb[i];
@@ -603,8 +608,8 @@ begin
   rmsnorm(x, x, w^.rms_final_weight, 0, dim);
 
   // classifier into logits
-  quantize(s^.xq, x, dim);
-  matmul(s^.logits, s^.xq, w^.wcls, 0, p^.dim, p^.vocab_size);
+  quantize(s^.xq[0], x, dim);
+  matmul(s^.logits, s^.xq[0], w^.wcls[0], p^.dim, p^.vocab_size);
   Result := s^.logits;
 end;
 

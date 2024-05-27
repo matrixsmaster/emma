@@ -64,7 +64,6 @@ end;
 
 procedure TForm1.Button1Click(Sender: TObject);
 var
-  I: Integer;
   fhandle: integer;
 begin
   if not ODlg1.Execute then exit;

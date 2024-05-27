@@ -122,7 +122,7 @@ object Form1: TForm1
     Width = 201
     Height = 17
     Max = 256
-    Min = 8
+    Min = 1
     Position = 8
     TabOrder = 4
     ThumbLength = 12
