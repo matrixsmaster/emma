@@ -592,7 +592,7 @@ begin
     end;
 
     // final matmul to get the output of the ffn
-    quantize(s^.hq, s^.hb, dim);
+    quantize(s^.hq, s^.hb, hidden_dim);
     matmul(s^.xb, s^.hq, w^.w2, l*dim*hidden_dim, hidden_dim, dim);
 
     // residual connection
@@ -603,7 +603,7 @@ begin
   rmsnorm(x, x, w^.rms_final_weight, 0, dim);
 
   // classifier into logits
-  quantize(s^.xq, s^.x, dim);
+  quantize(s^.xq, x, dim);
   matmul(s^.logits, s^.xq, w^.wcls, 0, p^.dim, p^.vocab_size);
   Result := s^.logits;
 end;
